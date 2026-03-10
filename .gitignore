@@ -1,0 +1,40 @@
+# Swift Package Manager
+.build/
+.swiftpm/config/
+Packages/
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE / Editor
+.idea/
+*.swp
+*.swo
+*~
+
+# Env / secrets (do not commit API keys)
+.env
+.env.local
+*.xcconfig
+!Shared.xcconfig
