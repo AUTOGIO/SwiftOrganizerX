@@ -2,6 +2,7 @@
 .build/
 .swiftpm/config/
 Packages/
+dist/
 
 # Xcode
 DerivedData/
@@ -32,6 +33,9 @@ xcuserdata/
 *.swp
 *.swo
 *~
+
+# Release artifacts
+*.zip
 
 # Env / secrets (do not commit API keys)
 .env

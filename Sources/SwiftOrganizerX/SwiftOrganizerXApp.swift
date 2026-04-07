@@ -11,8 +11,8 @@ struct SwiftOrganizerXApp: App {
         .commands {
             SidebarCommands()
             CommandGroup(after: .newItem) {
-                Button("Organize Selected...") {
-                    // Logic from FileService
+                Button("Open File Organizer") {
+                    NotificationCenter.default.post(name: .openFileOrganizer, object: nil)
                 }
                 .keyboardShortcut("O", modifiers: .command)
             }

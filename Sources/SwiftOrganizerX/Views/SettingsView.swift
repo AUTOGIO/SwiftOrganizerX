@@ -13,8 +13,11 @@ public struct SettingsView: View {
             }
             
             Section("About") {
-                Text("SwiftOrganizerX v1.0")
+                Text("\(AppMetadata.displayName) \(AppMetadata.versionLabel)")
                 Text("Native macOS File & Notes Manager")
+                Text(AppMetadata.bundleIdentifier)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

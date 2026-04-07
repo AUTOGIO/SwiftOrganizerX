@@ -31,5 +31,8 @@ public struct MainView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openFileOrganizer)) { _ in
+            viewModel.selectedItem = .fileOrganizer
+        }
     }
 }

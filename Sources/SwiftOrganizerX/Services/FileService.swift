@@ -1,7 +1,7 @@
 import Foundation
 
 public final class FileService: ObservableObject {
-    private let fileManager = FileManager.default
+    private let fileManager: FileManager
     
     public struct MoveOperation: Codable {
         let source: URL
@@ -10,7 +10,9 @@ public final class FileService: ObservableObject {
     
     @Published public var lastOperations: [MoveOperation] = []
     
-    public init() {}
+    public init(fileManager: FileManager = .default) {
+        self.fileManager = fileManager
+    }
     
     public func organize(directory: URL) throws -> Int {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
@@ -36,9 +38,7 @@ public final class FileService: ObservableObject {
             movedCount += 1
         }
         
-        DispatchQueue.main.async {
-            self.lastOperations = currentOperations
-        }
+        lastOperations = currentOperations
         return movedCount
     }
     
@@ -48,9 +48,7 @@ public final class FileService: ObservableObject {
                 try fileManager.moveItem(at: op.destination, to: op.source)
             }
         }
-        DispatchQueue.main.async {
-            self.lastOperations = []
-        }
+        lastOperations = []
     }
     
     public func cleanEmptyFolders(in directory: URL) throws -> Int {
@@ -73,8 +71,7 @@ public final class FileService: ObservableObject {
     }
     
     public func getParetoInsights(for directory: URL) throws -> (totalSize: Int64, topFiles: [FileItem], impactPercent: Double) {
-        let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey], options: [.skipsHiddenFiles])
-        let files = contents.compactMap { FileItem(url: $0) }.filter { !$0.isDirectory }.sorted { $0.size > $1.size }
+        let files = try allFiles(in: directory).sorted { $0.size > $1.size }
         
         let totalSize = files.reduce(0) { $0 + $1.size }
         let topCount = max(1, Int(Double(files.count) * 0.2))
@@ -97,5 +94,24 @@ public final class FileService: ObservableObject {
             counter += 1
         }
         return destination
+    }
+
+    private func allFiles(in directory: URL) throws -> [FileItem] {
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+        
+        var files: [FileItem] = []
+        for case let url as URL in enumerator {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
+            files.append(FileItem(url: url))
+        }
+        
+        return files
     }
 }

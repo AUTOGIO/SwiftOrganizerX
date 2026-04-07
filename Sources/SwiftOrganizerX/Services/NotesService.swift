@@ -24,16 +24,15 @@ public final class NotesService {
             return allNotes
         end tell
         """
-        
-        let script = NSAppleScript(source: scriptSource)
-        var error: NSDictionary?
-        let resultDescriptor = script?.executeAndReturnError(&error)
-        
-        if let err = error {
-            throw NSError(domain: "NotesService", code: 1, userInfo: [NSLocalizedDescriptionKey: "AppleScript error: \(err)"])
-        }
+
+        let resultDescriptor = try executeAppleScript(
+            scriptSource,
+            code: 1,
+            failureReason: "AppleScript error"
+        )
         
         guard let descriptor = resultDescriptor else { return [] }
+        guard descriptor.numberOfItems > 0 else { return [] }
         
         var notes: [NoteItem] = []
         for i in 1...descriptor.numberOfItems {
@@ -49,35 +48,53 @@ public final class NotesService {
     }
     
     public func moveNote(id: String, toFolder folderName: String) throws {
+        let escapedFolderName = Self.appleScriptLiteral(folderName)
+        let escapedID = Self.appleScriptLiteral(id)
         let scriptSource = """
         tell application "Notes"
-            if not (exists folder "\(folderName)") then
-                make new folder with properties {name:"\(folderName)"}
+            if not (exists folder \(escapedFolderName)) then
+                make new folder with properties {name:\(escapedFolderName)}
             end if
-            set theNote to note id "\(id)"
-            set theFolder to folder "\(folderName)"
+            set theNote to note id \(escapedID)
+            set theFolder to folder \(escapedFolderName)
             move theNote to theFolder
         end tell
         """
-        let script = NSAppleScript(source: scriptSource)
-        var error: NSDictionary?
-        script?.executeAndReturnError(&error)
-        if let err = error {
-            throw NSError(domain: "NotesService", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to move note: \(err)"])
-        }
+        _ = try executeAppleScript(
+            scriptSource,
+            code: 2,
+            failureReason: "Failed to move note"
+        )
     }
     
     public func deleteNote(id: String) throws {
+        let escapedID = Self.appleScriptLiteral(id)
         let scriptSource = """
         tell application "Notes"
-            delete note id "\(id)"
+            delete note id \(escapedID)
         end tell
         """
-        let script = NSAppleScript(source: scriptSource)
+        _ = try executeAppleScript(
+            scriptSource,
+            code: 3,
+            failureReason: "Failed to delete note"
+        )
+    }
+    
+    private func executeAppleScript(_ source: String, code: Int, failureReason: String) throws -> NSAppleEventDescriptor? {
+        let script = NSAppleScript(source: source)
         var error: NSDictionary?
-        script?.executeAndReturnError(&error)
+        let descriptor = script?.executeAndReturnError(&error)
         if let err = error {
-            throw NSError(domain: "NotesService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to delete note: \(err)"])
+            throw NSError(domain: "NotesService", code: code, userInfo: [NSLocalizedDescriptionKey: "\(failureReason): \(err)"])
         }
+        return descriptor
+    }
+    
+    private static func appleScriptLiteral(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "\"\(escaped)\""
     }
 }

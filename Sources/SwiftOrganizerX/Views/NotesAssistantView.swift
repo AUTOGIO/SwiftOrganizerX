@@ -1,10 +1,13 @@
 import SwiftUI
 
 public struct NotesAssistantView: View {
+    @AppStorage("openai_api_key") private var apiKey: String = ""
     @State private var notes: [NoteItem] = []
+    @State private var evaluations: [String: NoteEvaluation] = [:]
     @State private var isEvaluating: Bool = false
+    @State private var processedNotes: Int = 0
     @State private var statusMessage: String = "Fetch notes to begin"
-    private let service = NotesService()
+    private let notesService = NotesService()
     
     public var body: some View {
         VStack {
@@ -17,19 +20,64 @@ public struct NotesAssistantView: View {
                 Button("Evaluate All (AI)") {
                     evaluateNotes()
                 }
-                .disabled(notes.isEmpty || isEvaluating)
+                .disabled(notes.isEmpty || isEvaluating || trimmedAPIKey.isEmpty)
+                .buttonStyle(.bordered)
+                
+                Button("Apply Suggested Categories") {
+                    applySuggestedCategories()
+                }
+                .disabled(isEvaluating || suggestedMoveCount == 0)
                 .buttonStyle(.bordered)
             }
             .padding()
             
+            if isEvaluating {
+                ProgressView(value: Double(processedNotes), total: Double(max(notes.count, 1)))
+                    .padding(.horizontal)
+            }
+            
             List(notes) { note in
                 VStack(alignment: .leading) {
-                    Text(note.title)
-                        .font(.headline)
+                    HStack {
+                        Text(note.title)
+                            .font(.headline)
+                        Spacer()
+                        if let evaluation = evaluations[note.id] {
+                            Text(evaluation.isMeaningful ? "Meaningful" : "Review")
+                                .font(.caption.weight(.semibold))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(evaluation.isMeaningful ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    
                     Text(note.folder)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    
+                    if let evaluation = evaluations[note.id] {
+                        Text(evaluation.reason)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        if let suggestedCategory = evaluation.suggestedCategory, !suggestedCategory.isEmpty {
+                            Text("Suggested folder: \(suggestedCategory)")
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                        }
+                    }
                 }
+                .padding(.vertical, 4)
+            }
+            
+            if !trimmedAPIKey.isEmpty {
+                Text("Using configured OpenAI API key for note evaluation.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Add an OpenAI API key in Settings to enable note evaluation.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             
             Text(statusMessage)
@@ -39,10 +87,27 @@ public struct NotesAssistantView: View {
         .navigationTitle("Notes Assistant")
     }
     
+    private var trimmedAPIKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private var suggestedMoveCount: Int {
+        notes.reduce(into: 0) { count, note in
+            guard let suggestedCategory = evaluations[note.id]?.suggestedCategory?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !suggestedCategory.isEmpty,
+                  suggestedCategory != note.folder else {
+                return
+            }
+            count += 1
+        }
+    }
+    
     private func fetchNotes() {
-        Task {
+        Task { @MainActor in
             do {
-                notes = try await service.fetchAllNotes()
+                notes = try await notesService.fetchAllNotes()
+                evaluations = [:]
+                processedNotes = 0
                 statusMessage = "Fetched \(notes.count) notes"
             } catch {
                 statusMessage = "Error: \(error.localizedDescription)"
@@ -51,7 +116,66 @@ public struct NotesAssistantView: View {
     }
     
     private func evaluateNotes() {
-        // Implementation for batch AI evaluation
-        statusMessage = "AI Evaluation would proceed here (OpenAI Key required)"
+        guard !trimmedAPIKey.isEmpty else {
+            statusMessage = "Add an OpenAI API key in Settings before running evaluation."
+            return
+        }
+        
+        Task { @MainActor in
+            isEvaluating = true
+            processedNotes = 0
+            evaluations = [:]
+            statusMessage = "Evaluating \(notes.count) notes..."
+            
+            let aiService = AIService(apiKey: trimmedAPIKey)
+            var completed = 0
+            var failures = 0
+            
+            for note in notes {
+                do {
+                    let evaluation = try await aiService.evaluate(note: note)
+                    evaluations[note.id] = evaluation
+                } catch {
+                    failures += 1
+                }
+                
+                completed += 1
+                processedNotes = completed
+                statusMessage = "Evaluated \(completed)/\(notes.count) notes"
+            }
+            
+            isEvaluating = false
+            let suggestionCount = suggestedMoveCount
+            statusMessage = "Evaluation complete. \(evaluations.count) notes reviewed, \(suggestionCount) suggested moves, \(failures) failures."
+        }
+    }
+    
+    private func applySuggestedCategories() {
+        Task { @MainActor in
+            var movedCount = 0
+            
+            for note in notes {
+                guard let evaluation = evaluations[note.id],
+                      let suggestedCategory = evaluation.suggestedCategory?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !suggestedCategory.isEmpty,
+                      suggestedCategory != note.folder else {
+                    continue
+                }
+                
+                do {
+                    try notesService.moveNote(id: note.id, toFolder: suggestedCategory)
+                    movedCount += 1
+                } catch {
+                    statusMessage = "Move failed for \(note.title): \(error.localizedDescription)"
+                }
+            }
+            
+            do {
+                notes = try await notesService.fetchAllNotes()
+                statusMessage = "Moved \(movedCount) notes into suggested folders."
+            } catch {
+                statusMessage = "Moved \(movedCount) notes, but refresh failed: \(error.localizedDescription)"
+            }
+        }
     }
 }

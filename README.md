@@ -1,22 +1,22 @@
 # SwiftOrganizerX
 
-A production-ready, native macOS application for automated file and notes management, optimized for Apple Silicon (M3).
+A native macOS application for file organization and Apple Notes review, built with SwiftUI and Swift Package Manager.
 
 **Repo:** [github.com/AUTOGIO/SwiftOrganizerX](https://github.com/AUTOGIO/SwiftOrganizerX)
 
 ## Features
 
 - **🗂️ File Organizer**: One-click directory organization into logical categories.
-- **↩️ Undo Support**: Robust undo system for organization operations.
-- **📊 Storage Insights**: Pareto 80/20 analysis to identify storage bloat.
+- **↩️ Undo Support**: Undo the most recent file organization batch during the current app session.
+- **📊 Storage Insights**: Recursive Pareto-style analysis to identify storage-heavy files.
 - **🧹 Cleanup**: Deep removal of empty subfolder trees.
-- **📝 Notes Assistant**: Intelligent Apple Notes categorization and cleanup powered by OpenAI.
+- **📝 Notes Assistant**: Fetch Apple Notes, evaluate them with OpenAI, and apply suggested folder categories.
 - **💻 Native UI**: Clean, efficient SwiftUI interface with Dark Mode support.
 
 ## Environment Requirements
 
 - **macOS 14.0+**
-- **Apple Silicon (M3 Optimized)**
+- **Apple Silicon or Intel Mac with Swift 5.9+**
 - **OpenAI API Key**: Set in the app settings for AI features.
 
 ## Clone and Run
@@ -39,6 +39,18 @@ swift build -c release
    ```bash
    .build/release/SwiftOrganizerX
    ```
+
+## Package For Release
+
+Build a versioned macOS `.app` bundle and `.zip` artifact:
+
+```bash
+bash scripts/package_macos_app.sh 1.0.0
+```
+
+Artifacts are written to `dist/`.
+
+For the manual release flow, see `RELEASE.md`.
 
 ## Development
 

@@ -1,5 +1,9 @@
 import SwiftUI
 
+public extension Notification.Name {
+    static let openFileOrganizer = Notification.Name("SwiftOrganizerX.openFileOrganizer")
+}
+
 public enum NavigationItem: String, CaseIterable {
     case fileOrganizer = "File Organizer"
     case notesAssistant = "Notes Assistant"
