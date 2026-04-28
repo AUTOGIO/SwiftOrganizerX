@@ -73,7 +73,10 @@ public final class NotesAssistantViewModel: ObservableObject {
 
     public func onAppear() {
         // Uses the shared migration helper to avoid duplicating migration logic.
-        keychain.migrateAPIKeyFromUserDefaultsIfNeeded()
+        // Surface migration failures in statusMessage so the user knows to re-enter the key.
+        if let error = keychain.migrateAPIKeyFromUserDefaultsIfNeeded() {
+            statusMessage = "Key migration failed: \(error.localizedDescription)"
+        }
         apiKey = keychain.load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) ?? ""
     }
 

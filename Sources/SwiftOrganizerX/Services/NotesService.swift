@@ -103,7 +103,7 @@ public final class NotesService {
 
     /// Strips HTML tags and decodes common HTML entities, returning plain text.
     /// Used to convert the HTML body returned by Apple Notes' AppleScript interface.
-    private static func stripHTML(_ html: String) -> String {
+    static func stripHTML(_ html: String) -> String {
         // Remove script and style blocks and their content first.
         var text = html
             .replacingOccurrences(of: "<script[^>]*>[\\s\\S]*?</script>", with: " ", options: .regularExpression)
