@@ -1,6 +1,10 @@
 import Foundation
 
-public final class FileService {
+/// `FileService` is safe to use from a `Task.detached` closure provided only one
+/// concurrent task accesses it at a time (enforced by the `isWorking` guard in
+/// `FileOrganizerViewModel`). Marked `@unchecked Sendable` to satisfy the Swift
+/// concurrency checker; the caller is responsible for the single-access invariant.
+public final class FileService: @unchecked Sendable {
     private let fileManager: FileManager
     
     public struct MoveOperation: Codable {

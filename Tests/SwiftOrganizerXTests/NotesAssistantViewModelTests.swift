@@ -181,4 +181,19 @@ final class NotesAssistantViewModelTests: XCTestCase {
         ]
         XCTAssertEqual(viewModel.suggestedMoveCount, 2)
     }
+
+    // MARK: - fetchNotes() guard
+
+    func testFetchNotesGuardPreventsDoubleFetch() {
+        let viewModel = NotesAssistantViewModel()
+        viewModel.isFetching = true
+        // A second call while already fetching should be a no-op.
+        viewModel.fetchNotes()
+        // isFetching should remain true and statusMessage should not change to "Fetching notes..."
+        // (it was already true before the call, so the guard short-circuits).
+        XCTAssertTrue(viewModel.isFetching,
+                      "isFetching guard should prevent a second concurrent fetch")
+        XCTAssertEqual(viewModel.statusMessage, "Fetch notes to begin",
+                       "statusMessage should not be updated when the guard fires")
+    }
 }

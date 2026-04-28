@@ -35,6 +35,7 @@ public final class InsightsViewModel: ObservableObject {
     private func analyze(_ url: URL) {
         guard !isAnalyzing else { return }
         isAnalyzing = true
+        hasAnalysis = false
         statusMessage = ""
         let service = fileService
         Task.detached(priority: .userInitiated) { [weak self] in

@@ -109,6 +109,7 @@ public final class NotesAssistantViewModel: ObservableObject {
 
     /// Entry point for AI evaluation. Shows the consent alert on first use.
     public func evaluateNotes() {
+        guard !notes.isEmpty else { return }
         guard !trimmedAPIKey.isEmpty else {
             statusMessage = "Add an OpenAI API key in Settings before running evaluation."
             return
@@ -135,7 +136,7 @@ public final class NotesAssistantViewModel: ObservableObject {
         let service = notesService
         Task.detached(priority: .userInitiated) { [weak self] in
             var movedCount = 0
-            var lastMoveError: String?
+            var failureCount = 0
             for note in capturedNotes {
                 guard let evaluation = capturedEvaluations[note.id],
                       let suggested = evaluation.suggestedCategory?
@@ -146,7 +147,7 @@ public final class NotesAssistantViewModel: ObservableObject {
                     try service.moveNote(id: note.id, toFolder: suggested)
                     movedCount += 1
                 } catch {
-                    lastMoveError = "Move failed for \(note.title): \(error.localizedDescription)"
+                    failureCount += 1
                 }
             }
             do {
@@ -154,13 +155,14 @@ public final class NotesAssistantViewModel: ObservableObject {
                 await MainActor.run {
                     self?.notes = refreshed
                     self?.isApplying = false
-                    self?.statusMessage = "Moved \(movedCount) notes into suggested folders."
+                    let failureNote = failureCount > 0 ? " (\(failureCount) failed)" : ""
+                    self?.statusMessage = "Moved \(movedCount) notes into suggested folders\(failureNote)."
                 }
             } catch {
                 await MainActor.run {
                     self?.isApplying = false
-                    self?.statusMessage = lastMoveError
-                        ?? "Moved \(movedCount) notes, but refresh failed: \(error.localizedDescription)"
+                    let failureNote = failureCount > 0 ? " (\(failureCount) move failures)," : ""
+                    self?.statusMessage = "\(failureNote) refresh failed: \(error.localizedDescription)"
                 }
             }
         }

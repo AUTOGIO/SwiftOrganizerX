@@ -12,7 +12,11 @@ public struct NoteEvaluation: Codable {
     }
 }
 
-public final class AIService {
+/// `AIService` instances are created fresh per evaluation batch and each instance is
+/// accessed only from the `TaskGroup` child tasks spawned by that batch. Marked
+/// `@unchecked Sendable` to satisfy the Swift concurrency checker; no shared mutable
+/// state is accessed concurrently.
+public final class AIService: @unchecked Sendable {
     private let apiKey: String
     private let model: String
 

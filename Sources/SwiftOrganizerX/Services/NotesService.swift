@@ -7,7 +7,11 @@ public struct NoteItem: Identifiable, Codable {
     public let folder: String
 }
 
-public final class NotesService {
+/// `NotesService` is safe to use from a `Task.detached` closure provided only one
+/// concurrent task accesses it at a time (enforced by the `isFetching`/`isApplying`
+/// guards in `NotesAssistantViewModel`). Marked `@unchecked Sendable` to satisfy the
+/// Swift concurrency checker; the caller is responsible for the single-access invariant.
+public final class NotesService: @unchecked Sendable {
     public init() {}
     
     public func fetchAllNotes() async throws -> [NoteItem] {
