@@ -50,11 +50,18 @@ public struct SettingsView: View {
 
     private func loadAndMigrateAPIKey() {
         // One-time migration: move the legacy plaintext key from UserDefaults into the Keychain.
+        // Only removes the UserDefaults entry if the Keychain write succeeds, so the key is
+        // never silently lost on save failure.
         let defaults = UserDefaults.standard
         if let legacy = defaults.string(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey),
            !legacy.isEmpty {
-            try? keychain.save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)
-            defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            do {
+                try keychain.save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)
+                defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            } catch {
+                // Leave UserDefaults key intact so the next launch can retry migration.
+                saveError = "Key migration failed: \(error.localizedDescription)"
+            }
         }
         apiKey = keychain.load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) ?? ""
     }
