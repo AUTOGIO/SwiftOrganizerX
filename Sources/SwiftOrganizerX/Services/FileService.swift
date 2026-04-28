@@ -54,6 +54,8 @@ public final class FileService: ObservableObject {
                 try fileManager.moveItem(at: op.destination, to: op.source)
             }
         }
+        // Clear state only after all moves succeed; if an earlier move threw, the
+        // remaining operations are still in lastOperations so undo can be retried.
         lastOperations = []
     }
     

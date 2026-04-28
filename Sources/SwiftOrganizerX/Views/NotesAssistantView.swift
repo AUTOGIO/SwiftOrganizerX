@@ -89,7 +89,7 @@ public struct NotesAssistantView: View {
         }
         .navigationTitle("Notes Assistant")
         .onAppear {
-            apiKey = keychain.load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) ?? ""
+            migrateAndLoadAPIKey()
         }
         .alert("Send Notes to OpenAI?", isPresented: $showingConsentAlert) {
             Button("Allow") {
@@ -104,6 +104,20 @@ public struct NotesAssistantView: View {
 
     private var trimmedAPIKey: String {
         apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func migrateAndLoadAPIKey() {
+        // Mirror the one-time migration performed in SettingsView so that existing
+        // users who open Notes Assistant before visiting Settings are not locked out.
+        let defaults = UserDefaults.standard
+        if let legacy = defaults.string(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey),
+           !legacy.isEmpty {
+            // Only remove UserDefaults entry when the Keychain write succeeds.
+            if (try? keychain.save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)) != nil {
+                defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            }
+        }
+        apiKey = keychain.load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) ?? ""
     }
 
     private var suggestedMoveCount: Int {
