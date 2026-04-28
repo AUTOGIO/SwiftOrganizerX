@@ -1,6 +1,6 @@
 import Foundation
 
-public final class FileService: ObservableObject {
+public final class FileService {
     private let fileManager: FileManager
     
     public struct MoveOperation: Codable {
@@ -8,7 +8,7 @@ public final class FileService: ObservableObject {
         let destination: URL
     }
     
-    @Published public var lastOperations: [MoveOperation] = []
+    public var lastOperations: [MoveOperation] = []
     
     public init(fileManager: FileManager = .default) {
         self.fileManager = fileManager

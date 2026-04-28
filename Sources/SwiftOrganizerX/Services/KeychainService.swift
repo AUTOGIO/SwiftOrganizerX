@@ -74,6 +74,27 @@ final class KeychainService {
         #endif
     }
 
+    /// Performs a one-time migration of a legacy plaintext API key from UserDefaults into the
+    /// Keychain. Safe to call on every launch: is a no-op when no legacy key exists.
+    /// The UserDefaults entry is removed only after a successful Keychain write, so the key is
+    /// never silently lost on a save failure.
+    ///
+    /// - Returns: The error if the Keychain write failed (caller may surface it); `nil` on success
+    ///   or when there was nothing to migrate.
+    @discardableResult
+    func migrateAPIKeyFromUserDefaultsIfNeeded() -> Error? {
+        let defaults = UserDefaults.standard
+        guard let legacy = defaults.string(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey),
+              !legacy.isEmpty else { return nil }
+        do {
+            try save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)
+            defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            return nil
+        } catch {
+            return error
+        }
+    }
+
     enum KeychainError: LocalizedError {
         case saveFailed(Int32)
         case deleteFailed(Int32)
