@@ -39,8 +39,11 @@ public final class NotesService {
             if let item = descriptor.atIndex(i) {
                 let id = item.atIndex(1)?.stringValue ?? ""
                 let title = item.atIndex(2)?.stringValue ?? ""
-                let body = item.atIndex(3)?.stringValue ?? ""
+                let rawBody = item.atIndex(3)?.stringValue ?? ""
                 let folder = item.atIndex(4)?.stringValue ?? ""
+                // Apple Notes' AppleScript `body` property returns HTML; strip tags before
+                // storing so downstream consumers (e.g. AI evaluation) receive plain text.
+                let body = Self.stripHTML(rawBody)
                 notes.append(NoteItem(id: id, title: title, body: body, folder: folder))
             }
         }
@@ -96,5 +99,21 @@ public final class NotesService {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
         return "\"\(escaped)\""
+    }
+
+    /// Strips HTML tags and decodes common HTML entities, returning plain text.
+    /// Used to convert the HTML body returned by Apple Notes' AppleScript interface.
+    private static func stripHTML(_ html: String) -> String {
+        var text = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        let entities: [(String, String)] = [
+            ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+            ("&quot;", "\""), ("&#39;", "'"), ("&nbsp;", " ")
+        ]
+        for (entity, replacement) in entities {
+            text = text.replacingOccurrences(of: entity, with: replacement)
+        }
+        return text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 }

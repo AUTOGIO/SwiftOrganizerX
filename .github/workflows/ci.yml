@@ -27,3 +27,71 @@ jobs:
 
       - name: Package release app
         run: bash scripts/package_macos_app.sh 1.0.0
+
+  # TODO: Enable this job for public distribution by configuring the required secrets.
+  #
+  # Required GitHub Actions secrets:
+  #   DEVELOPER_ID_APPLICATION_CERT  - base64-encoded Developer ID Application certificate (.p12)
+  #   DEVELOPER_ID_CERT_PASSWORD     - password for the .p12 certificate
+  #   APPLE_ID                       - Apple ID email used for notarization
+  #   APPLE_ID_PASSWORD              - app-specific password for the Apple ID
+  #   APPLE_TEAM_ID                  - Apple Developer Team ID (10-character string)
+  #
+  # sign-and-notarize:
+  #   runs-on: macos-14
+  #   needs: build-test-package
+  #   if: github.ref == 'refs/heads/main'
+  #
+  #   steps:
+  #     - name: Check out repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Select Xcode
+  #       uses: maxim-lobanov/setup-xcode@v1
+  #       with:
+  #         xcode-version: latest-stable
+  #
+  #     - name: Import Developer ID certificate
+  #       env:
+  #         CERT_B64: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT }}
+  #         CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+  #       run: |
+  #         echo "$CERT_B64" | base64 --decode > /tmp/certificate.p12
+  #         security create-keychain -p "" build.keychain
+  #         security import /tmp/certificate.p12 -k build.keychain \
+  #           -P "$CERT_PASSWORD" -T /usr/bin/codesign
+  #         security set-key-partition-list -S apple-tool:,apple: -s \
+  #           -k "" build.keychain
+  #         security list-keychains -s build.keychain
+  #
+  #     - name: Package and sign release app
+  #       env:
+  #         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  #       # TODO: Update package_macos_app.sh to accept a signing identity parameter
+  #       # and replace the ad-hoc `codesign --sign -` with:
+  #       #   codesign --force --deep \
+  #       #     --sign "Developer ID Application: Your Name ($APPLE_TEAM_ID)" \
+  #       #     --options runtime \
+  #       #     "$APP_BUNDLE"
+  #       run: bash scripts/package_macos_app.sh 1.0.0
+  #
+  #     - name: Notarize app
+  #       env:
+  #         APPLE_ID: ${{ secrets.APPLE_ID }}
+  #         APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+  #         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  #       run: |
+  #         xcrun notarytool submit dist/SwiftOrganizerX-1.0.0-macos.zip \
+  #           --apple-id "$APPLE_ID" \
+  #           --password "$APPLE_ID_PASSWORD" \
+  #           --team-id "$APPLE_TEAM_ID" \
+  #           --wait
+  #
+  #     - name: Staple notarization ticket
+  #       run: xcrun stapler staple dist/SwiftOrganizerX.app
+  #
+  #     - name: Upload signed artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: SwiftOrganizerX-signed
+  #         path: dist/SwiftOrganizerX-1.0.0-macos.zip

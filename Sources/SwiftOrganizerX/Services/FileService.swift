@@ -18,26 +18,32 @@ public final class FileService: ObservableObject {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
         var movedCount = 0
         var currentOperations: [MoveOperation] = []
-        
-        for url in contents {
-            let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
-            guard resourceValues.isRegularFile == true else { continue }
-            
-            let item = FileItem(url: url)
-            guard item.category != .other else { continue }
-            
-            let targetDir = directory.appendingPathComponent(item.category.rawValue)
-            if !fileManager.fileExists(atPath: targetDir.path) {
-                try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
+
+        do {
+            for url in contents {
+                let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
+                guard resourceValues.isRegularFile == true else { continue }
+
+                let item = FileItem(url: url)
+                guard item.category != .other else { continue }
+
+                let targetDir = directory.appendingPathComponent(item.category.rawValue)
+                if !fileManager.fileExists(atPath: targetDir.path) {
+                    try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
+                }
+
+                let destination = getUniqueURL(for: item.name, in: targetDir)
+                try fileManager.moveItem(at: url, to: destination)
+
+                currentOperations.append(MoveOperation(source: url, destination: destination))
+                movedCount += 1
             }
-            
-            let destination = getUniqueURL(for: item.name, in: targetDir)
-            try fileManager.moveItem(at: url, to: destination)
-            
-            currentOperations.append(MoveOperation(source: url, destination: destination))
-            movedCount += 1
+        } catch {
+            // Preserve partial moves so undoLastOrganize() can recover any files already moved.
+            lastOperations = currentOperations
+            throw error
         }
-        
+
         lastOperations = currentOperations
         return movedCount
     }

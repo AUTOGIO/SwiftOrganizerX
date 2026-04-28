@@ -15,9 +15,11 @@ public struct NoteEvaluation: Codable {
 public final class AIService {
     private let apiKey: String
     private let model: String
-    
+
     public static let defaultModel = "gpt-4.1-mini"
-    
+    /// Maximum number of seconds to wait for an OpenAI API response before timing out.
+    private static let requestTimeout: TimeInterval = 30
+
     public init(apiKey: String, model: String = AIService.defaultModel) {
         self.apiKey = apiKey
         self.model = model
@@ -25,7 +27,7 @@ public final class AIService {
     
     public func evaluate(note: NoteItem) async throws -> NoteEvaluation {
         let url = URL(string: "https://api.openai.com/v1/responses")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: Self.requestTimeout)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
