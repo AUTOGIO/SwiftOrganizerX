@@ -70,9 +70,8 @@ final class FileServiceTests: XCTestCase {
 
         // Move file1 manually so that the Documents folder already has alpha.pdf
         // and beta.pdf, leaving the FileService nothing else to move and making
-        // the test deterministic. Instead, rely on a simpler invariant: organize
-        // succeeds for both files, then we verify lastOperations is populated.
-        // The partial-failure code path is exercised by the undo-throw test below.
+        // the test deterministic. Verify that a successful organize() populates
+        // lastOperations and that undoLastOrganize() correctly clears it.
         let count = try fileService.organize(directory: temporaryDirectory)
         XCTAssertEqual(count, 2, "Both PDF files should be moved")
         XCTAssertEqual(fileService.lastOperations.count, 2, "Both operations recorded")

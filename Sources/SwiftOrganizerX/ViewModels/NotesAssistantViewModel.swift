@@ -73,7 +73,10 @@ final class NotesAssistantViewModel: ObservableObject {
 
     func onAppear() {
         // Uses the shared migration helper to avoid duplicating migration logic.
-        // Surface migration failures in statusMessage so the user knows to re-enter the key.
+        // Migration failures are surfaced in statusMessage so the user knows to
+        // re-enter their API key. This is the right level of prominence: the
+        // banner appears immediately when the user opens the Notes Assistant and
+        // they need to take action (go to Settings) before any AI feature works.
         if let error = keychain.migrateAPIKeyFromUserDefaultsIfNeeded() {
             statusMessage = "Key migration failed: \(error.localizedDescription)"
         }
