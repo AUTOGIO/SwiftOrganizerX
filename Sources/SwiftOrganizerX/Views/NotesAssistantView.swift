@@ -113,8 +113,13 @@ public struct NotesAssistantView: View {
         if let legacy = defaults.string(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey),
            !legacy.isEmpty {
             // Only remove UserDefaults entry when the Keychain write succeeds.
-            if (try? keychain.save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)) != nil {
+            do {
+                try keychain.save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)
                 defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            } catch {
+                // Leave UserDefaults key intact so the next launch can retry migration.
+                // A missing key only disables evaluation; the user can visit Settings
+                // to see a more detailed error and re-enter if needed.
             }
         }
         apiKey = keychain.load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) ?? ""

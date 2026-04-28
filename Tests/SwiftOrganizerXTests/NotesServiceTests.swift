@@ -93,8 +93,10 @@ final class NotesServiceTests: XCTestCase {
         let result = Self.stripHTML(html)
         XCTAssertTrue(result.contains("Meeting notes"), "Title should survive stripping")
         XCTAssertTrue(result.contains("Action item 1"), "List items should survive")
-        XCTAssertTrue(result.contains("<team>"), "Decoded entities should appear as text")
-        XCTAssertFalse(result.contains("<"), "No raw HTML tags should remain (except from decoded entities)")
+        XCTAssertTrue(result.contains("<team>"), "Decoded entities should appear as literal text")
+        XCTAssertFalse(result.contains("<b>"), "Bold tag should be stripped")
+        XCTAssertFalse(result.contains("<div>"), "Div tags should be stripped")
+        XCTAssertFalse(result.contains("<html>"), "Html tags should be stripped")
         XCTAssertFalse(result.contains("body{}"), "Style block content should be removed")
     }
 }
