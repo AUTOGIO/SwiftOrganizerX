@@ -161,8 +161,10 @@ public final class NotesAssistantViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self?.isApplying = false
-                    let failureNote = failureCount > 0 ? " (\(failureCount) move failures)," : ""
-                    self?.statusMessage = "\(failureNote) refresh failed: \(error.localizedDescription)"
+                    var msg = "Moved \(movedCount) notes"
+                    if failureCount > 0 { msg += " (\(failureCount) failed)" }
+                    msg += "; refresh failed: \(error.localizedDescription)"
+                    self?.statusMessage = msg
                 }
             }
         }

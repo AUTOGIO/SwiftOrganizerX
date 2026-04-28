@@ -9,7 +9,10 @@ public struct InsightsView: View {
                 Button("Select Directory for Analysis") {
                     viewModel.selectAndAnalyze()
                 }
+                .disabled(viewModel.isAnalyzing)
                 .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Select directory for storage analysis")
+                .accessibilityHint("Analyzes file sizes and shows Pareto distribution")
 
                 if viewModel.isAnalyzing {
                     ProgressView()
@@ -43,6 +46,7 @@ public struct InsightsView: View {
                             Spacer()
                             Text(ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file))
                         }
+                        .accessibilityElement(children: .combine)
                     }
                 }
                 .padding()

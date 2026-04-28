@@ -74,20 +74,6 @@ public final class NotesService: @unchecked Sendable {
         )
     }
     
-    public func deleteNote(id: String) throws {
-        let escapedID = Self.appleScriptLiteral(id)
-        let scriptSource = """
-        tell application "Notes"
-            delete note id \(escapedID)
-        end tell
-        """
-        _ = try executeAppleScript(
-            scriptSource,
-            code: 3,
-            failureReason: "Failed to delete note"
-        )
-    }
-    
     private func executeAppleScript(_ source: String, code: Int, failureReason: String) throws -> NSAppleEventDescriptor? {
         let script = NSAppleScript(source: source)
         var error: NSDictionary?
