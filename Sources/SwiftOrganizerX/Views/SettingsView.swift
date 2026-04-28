@@ -1,12 +1,12 @@
 import SwiftUI
 
-public struct SettingsView: View {
+struct SettingsView: View {
     @State private var apiKey: String = ""
     @State private var saveError: String?
     @AppStorage(AppMetadata.aiConsentGrantedDefaultsKey) private var consentGranted: Bool = false
     private let keychain = KeychainService()
 
-    public var body: some View {
+    var body: some View {
         Form {
             Section("API Configuration") {
                 SecureField("OpenAI API Key", text: $apiKey)

@@ -1,10 +1,10 @@
 import SwiftUI
 
-public struct FileOrganizerView: View {
+struct FileOrganizerView: View {
     @StateObject private var viewModel = FileOrganizerViewModel()
     @State private var showCleanEmptyConfirmation = false
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Text(viewModel.selectedDirectory?.path ?? "No directory selected")

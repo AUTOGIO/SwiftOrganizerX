@@ -1,9 +1,9 @@
 import Foundation
 
-public struct NoteEvaluation: Codable {
-    public let isMeaningful: Bool
-    public let reason: String
-    public let suggestedCategory: String?
+struct NoteEvaluation: Codable {
+    let isMeaningful: Bool
+    let reason: String
+    let suggestedCategory: String?
     
     enum CodingKeys: String, CodingKey {
         case isMeaningful = "is_meaningful"
@@ -16,20 +16,20 @@ public struct NoteEvaluation: Codable {
 /// accessed only from the `TaskGroup` child tasks spawned by that batch. Marked
 /// `@unchecked Sendable` to satisfy the Swift concurrency checker; no shared mutable
 /// state is accessed concurrently.
-public final class AIService: @unchecked Sendable {
+final class AIService: @unchecked Sendable {
     private let apiKey: String
     private let model: String
 
-    public static let defaultModel = "gpt-4.1-mini"
+    static let defaultModel = "gpt-4.1-mini"
     /// Maximum number of seconds to wait for an OpenAI API response before timing out.
     private static let requestTimeout: TimeInterval = 30
 
-    public init(apiKey: String, model: String = AIService.defaultModel) {
+    init(apiKey: String, model: String = AIService.defaultModel) {
         self.apiKey = apiKey
         self.model = model
     }
     
-    public func evaluate(note: NoteItem) async throws -> NoteEvaluation {
+    func evaluate(note: NoteItem) async throws -> NoteEvaluation {
         let url = URL(string: "https://api.openai.com/v1/responses")!
         var request = URLRequest(url: url, timeoutInterval: Self.requestTimeout)
         request.httpMethod = "POST"

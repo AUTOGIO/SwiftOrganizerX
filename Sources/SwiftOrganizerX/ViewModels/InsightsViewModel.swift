@@ -5,23 +5,23 @@ import AppKit
 /// Directory enumeration is dispatched off the main thread via Task.detached;
 /// all @Published state updates are made back on the MainActor.
 @MainActor
-public final class InsightsViewModel: ObservableObject {
-    @Published public var totalSize: Int64 = 0
-    @Published public var topFiles: [FileItem] = []
-    @Published public var impactPercent: Double = 0.0
-    @Published public var hasAnalysis: Bool = false
-    @Published public var isAnalyzing: Bool = false
-    @Published public var statusMessage: String = ""
+final class InsightsViewModel: ObservableObject {
+    @Published var totalSize: Int64 = 0
+    @Published var topFiles: [FileItem] = []
+    @Published var impactPercent: Double = 0.0
+    @Published var hasAnalysis: Bool = false
+    @Published var isAnalyzing: Bool = false
+    @Published var statusMessage: String = ""
 
     private let fileService: FileService
 
-    public init(fileService: FileService = FileService()) {
+    init(fileService: FileService = FileService()) {
         self.fileService = fileService
     }
 
     // MARK: - Actions
 
-    public func selectAndAnalyze() {
+    func selectAndAnalyze() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true

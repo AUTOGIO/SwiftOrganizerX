@@ -1,20 +1,20 @@
 import Foundation
 
-public struct NoteItem: Identifiable, Codable {
-    public let id: String
-    public let title: String
-    public let body: String
-    public let folder: String
+struct NoteItem: Identifiable, Codable {
+    let id: String
+    let title: String
+    let body: String
+    let folder: String
 }
 
 /// `NotesService` is safe to use from a `Task.detached` closure provided only one
 /// concurrent task accesses it at a time (enforced by the `isFetching`/`isApplying`
 /// guards in `NotesAssistantViewModel`). Marked `@unchecked Sendable` to satisfy the
 /// Swift concurrency checker; the caller is responsible for the single-access invariant.
-public final class NotesService: @unchecked Sendable {
-    public init() {}
+final class NotesService: @unchecked Sendable {
+    init() {}
     
-    public func fetchAllNotes() async throws -> [NoteItem] {
+    func fetchAllNotes() async throws -> [NoteItem] {
         let scriptSource = """
         tell application "Notes"
             set allNotes to {}
@@ -54,7 +54,7 @@ public final class NotesService: @unchecked Sendable {
         return notes
     }
     
-    public func moveNote(id: String, toFolder folderName: String) throws {
+    func moveNote(id: String, toFolder folderName: String) throws {
         let escapedFolderName = Self.appleScriptLiteral(folderName)
         let escapedID = Self.appleScriptLiteral(id)
         let scriptSource = """

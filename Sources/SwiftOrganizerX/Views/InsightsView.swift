@@ -1,9 +1,9 @@
 import SwiftUI
 
-public struct InsightsView: View {
+struct InsightsView: View {
     @StateObject private var viewModel = InsightsViewModel()
 
-    public var body: some View {
+    var body: some View {
         VStack {
             HStack {
                 Button("Select Directory for Analysis") {

@@ -1,6 +1,6 @@
 import Foundation
 
-public enum FileCategory: String, CaseIterable, Codable {
+enum FileCategory: String, CaseIterable, Codable {
     case images = "Images"
     case documents = "Documents"
     case videos = "Videos"
@@ -10,7 +10,7 @@ public enum FileCategory: String, CaseIterable, Codable {
     case executables = "Executables"
     case other = "Other"
     
-    public var extensions: Set<String> {
+    var extensions: Set<String> {
         switch self {
         case .images:
             return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".svg",
@@ -35,7 +35,7 @@ public enum FileCategory: String, CaseIterable, Codable {
         }
     }
     
-    public static func category(for extension: String) -> FileCategory {
+    static func category(for extension: String) -> FileCategory {
         let ext = `extension`.lowercased()
         for category in FileCategory.allCases {
             if category.extensions.contains(ext) {
@@ -46,19 +46,19 @@ public enum FileCategory: String, CaseIterable, Codable {
     }
 }
 
-public struct FileItem: Identifiable, Codable {
-    public let id: UUID
-    public let url: URL
-    public let name: String
-    public let size: Int64
-    public let modificationDate: Date
-    public let isDirectory: Bool
+struct FileItem: Identifiable, Codable {
+    let id: UUID
+    let url: URL
+    let name: String
+    let size: Int64
+    let modificationDate: Date
+    let isDirectory: Bool
     
-    public var category: FileCategory {
+    var category: FileCategory {
         isDirectory ? .other : FileCategory.category(for: url.pathExtension.isEmpty ? "" : "." + url.pathExtension)
     }
     
-    public init(url: URL) {
+    init(url: URL) {
         self.id = UUID()
         self.url = url
         self.name = url.lastPathComponent

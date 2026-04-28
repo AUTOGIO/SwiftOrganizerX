@@ -10,22 +10,22 @@ import SwiftUI
 /// - AI evaluation uses a bounded TaskGroup (up to `evaluationConcurrency` concurrent
 ///   requests) so large notes libraries don't overwhelm the OpenAI API.
 @MainActor
-public final class NotesAssistantViewModel: ObservableObject {
+final class NotesAssistantViewModel: ObservableObject {
 
     // MARK: - Published State
 
-    @Published public var notes: [NoteItem] = []
-    @Published public var evaluations: [String: NoteEvaluation] = [:]
-    @Published public var isFetching: Bool = false
-    @Published public var isEvaluating: Bool = false
-    @Published public var isApplying: Bool = false
-    @Published public var processedNotes: Int = 0
-    @Published public var statusMessage: String = "Fetch notes to begin"
-    @Published public var showConsentAlert: Bool = false
+    @Published var notes: [NoteItem] = []
+    @Published var evaluations: [String: NoteEvaluation] = [:]
+    @Published var isFetching: Bool = false
+    @Published var isEvaluating: Bool = false
+    @Published var isApplying: Bool = false
+    @Published var processedNotes: Int = 0
+    @Published var statusMessage: String = "Fetch notes to begin"
+    @Published var showConsentAlert: Bool = false
     /// Loaded from Keychain on onAppear; not persisted here.
-    @Published public var apiKey: String = ""
+    @Published var apiKey: String = ""
 
-    @AppStorage(AppMetadata.aiConsentGrantedDefaultsKey) public var consentGranted: Bool = false
+    @AppStorage(AppMetadata.aiConsentGrantedDefaultsKey) var consentGranted: Bool = false
 
     // MARK: - Dependencies
 
@@ -39,19 +39,19 @@ public final class NotesAssistantViewModel: ObservableObject {
 
     // MARK: - Init
 
-    public init(notesService: NotesService = NotesService(),
-                keychain: KeychainService = KeychainService()) {
+    init(notesService: NotesService = NotesService(),
+         keychain: KeychainService = KeychainService()) {
         self.notesService = notesService
         self.keychain = keychain
     }
 
     // MARK: - Computed
 
-    public var trimmedAPIKey: String {
+    var trimmedAPIKey: String {
         apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    public var suggestedMoveCount: Int {
+    var suggestedMoveCount: Int {
         notes.reduce(into: 0) { count, note in
             guard let suggested = evaluations[note.id]?.suggestedCategory?
                     .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -61,17 +61,17 @@ public final class NotesAssistantViewModel: ObservableObject {
         }
     }
 
-    public var canEvaluate: Bool {
+    var canEvaluate: Bool {
         !notes.isEmpty && !isEvaluating && !isFetching && !trimmedAPIKey.isEmpty
     }
 
-    public var canApply: Bool {
+    var canApply: Bool {
         !isEvaluating && !isApplying && !isFetching && suggestedMoveCount > 0
     }
 
     // MARK: - Lifecycle
 
-    public func onAppear() {
+    func onAppear() {
         // Uses the shared migration helper to avoid duplicating migration logic.
         // Surface migration failures in statusMessage so the user knows to re-enter the key.
         if let error = keychain.migrateAPIKeyFromUserDefaultsIfNeeded() {
@@ -83,7 +83,7 @@ public final class NotesAssistantViewModel: ObservableObject {
     // MARK: - Actions
 
     /// Fetches all notes from Apple Notes via AppleScript on a background thread.
-    public func fetchNotes() {
+    func fetchNotes() {
         guard !isFetching else { return }
         isFetching = true
         statusMessage = "Fetching notes..."
@@ -108,7 +108,7 @@ public final class NotesAssistantViewModel: ObservableObject {
     }
 
     /// Entry point for AI evaluation. Shows the consent alert on first use.
-    public func evaluateNotes() {
+    func evaluateNotes() {
         guard !notes.isEmpty else { return }
         guard !trimmedAPIKey.isEmpty else {
             statusMessage = "Add an OpenAI API key in Settings before running evaluation."
@@ -122,13 +122,13 @@ public final class NotesAssistantViewModel: ObservableObject {
     }
 
     /// Called when the user taps "Allow" in the consent alert.
-    public func grantConsentAndEvaluate() {
+    func grantConsentAndEvaluate() {
         consentGranted = true
         Task { await performEvaluation() }
     }
 
     /// Moves each note with a suggested category into that folder, then refreshes.
-    public func applySuggestedCategories() {
+    func applySuggestedCategories() {
         guard !isApplying else { return }
         isApplying = true
         let capturedNotes = notes

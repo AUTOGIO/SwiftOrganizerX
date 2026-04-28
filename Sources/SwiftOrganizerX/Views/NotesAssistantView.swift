@@ -1,10 +1,10 @@
 import SwiftUI
 
-public struct NotesAssistantView: View {
+struct NotesAssistantView: View {
     @StateObject private var viewModel = NotesAssistantViewModel()
     @State private var showApplyConfirmation = false
 
-    public var body: some View {
+    var body: some View {
         VStack {
             HStack {
                 Button("Fetch Notes") {

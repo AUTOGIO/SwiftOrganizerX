@@ -4,21 +4,21 @@ import Foundation
 /// concurrent task accesses it at a time (enforced by the `isWorking` guard in
 /// `FileOrganizerViewModel`). Marked `@unchecked Sendable` to satisfy the Swift
 /// concurrency checker; the caller is responsible for the single-access invariant.
-public final class FileService: @unchecked Sendable {
+final class FileService: @unchecked Sendable {
     private let fileManager: FileManager
     
-    public struct MoveOperation: Codable {
+    struct MoveOperation: Codable {
         let source: URL
         let destination: URL
     }
     
-    public var lastOperations: [MoveOperation] = []
+    var lastOperations: [MoveOperation] = []
     
-    public init(fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
     }
     
-    public func organize(directory: URL) throws -> Int {
+    func organize(directory: URL) throws -> Int {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
         var movedCount = 0
         var currentOperations: [MoveOperation] = []
@@ -52,7 +52,7 @@ public final class FileService: @unchecked Sendable {
         return movedCount
     }
     
-    public func undoLastOrganize() throws {
+    func undoLastOrganize() throws {
         for op in lastOperations.reversed() {
             if fileManager.fileExists(atPath: op.destination.path) {
                 try fileManager.moveItem(at: op.destination, to: op.source)
@@ -63,7 +63,7 @@ public final class FileService: @unchecked Sendable {
         lastOperations = []
     }
     
-    public func cleanEmptyFolders(in directory: URL) throws -> Int {
+    func cleanEmptyFolders(in directory: URL) throws -> Int {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: [])
         var removedCount = 0
         
@@ -82,7 +82,7 @@ public final class FileService: @unchecked Sendable {
         return removedCount
     }
     
-    public func getParetoInsights(for directory: URL) throws -> (totalSize: Int64, topFiles: [FileItem], impactPercent: Double) {
+    func getParetoInsights(for directory: URL) throws -> (totalSize: Int64, topFiles: [FileItem], impactPercent: Double) {
         let files = try allFiles(in: directory).sorted { $0.size > $1.size }
         
         let totalSize = files.reduce(0) { $0 + $1.size }
