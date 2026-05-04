@@ -79,6 +79,10 @@ final class KeychainService {
     /// The UserDefaults entry is removed only after a successful Keychain write, so the key is
     /// never silently lost on a save failure.
     ///
+    /// The migration is idempotent: if the app was force-quit between a successful Keychain write
+    /// and the UserDefaults delete, re-running will detect that a Keychain value already exists
+    /// and skip the write, preserving any key the user may have updated since then.
+    ///
     /// - Returns: The error if the Keychain write failed (caller may surface it); `nil` on success
     ///   or when there was nothing to migrate.
     @discardableResult
@@ -86,6 +90,16 @@ final class KeychainService {
         let defaults = UserDefaults.standard
         guard let legacy = defaults.string(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey),
               !legacy.isEmpty else { return nil }
+
+        // If the Keychain already holds a value for this account, the migration completed on a
+        // previous launch but the app was force-quit before UserDefaults could be cleaned up.
+        // Skip the overwrite to preserve any key the user may have updated since then, and
+        // just remove the now-stale UserDefaults entry.
+        if load(forKey: AppMetadata.openAIAPIKeyKeychainAccount) != nil {
+            defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
+            return nil
+        }
+
         do {
             try save(legacy, forKey: AppMetadata.openAIAPIKeyKeychainAccount)
             defaults.removeObject(forKey: AppMetadata.legacyOpenAIAPIKeyDefaultsKey)
