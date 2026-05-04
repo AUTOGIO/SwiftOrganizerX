@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-14
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Test
+        run: swift test
+
+      - name: Package release app
+        run: bash scripts/package_macos_app.sh ${{ github.ref_name }}
+
+      # Code-signing placeholder — enable once Developer ID secrets are configured.
+      # See the sign-and-notarize job in ci.yml for the full signing and notarization steps.
+      # codesign --force --deep \
+      #   --sign "Developer ID Application: Your Name ($APPLE_TEAM_ID)" \
+      #   --options runtime \
+      #   dist/SwiftOrganizerX.app
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/SwiftOrganizerX-${{ github.ref_name }}-macos.zip

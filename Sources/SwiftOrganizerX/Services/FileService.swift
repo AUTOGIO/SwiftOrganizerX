@@ -1,57 +1,69 @@
 import Foundation
 
-public final class FileService: ObservableObject {
+/// `FileService` is safe to use from a `Task.detached` closure provided only one
+/// concurrent task accesses it at a time (enforced by the `isWorking` guard in
+/// `FileOrganizerViewModel`). Marked `@unchecked Sendable` to satisfy the Swift
+/// concurrency checker; the caller is responsible for the single-access invariant.
+final class FileService: @unchecked Sendable {
     private let fileManager: FileManager
     
-    public struct MoveOperation: Codable {
+    struct MoveOperation: Codable {
         let source: URL
         let destination: URL
     }
     
-    @Published public var lastOperations: [MoveOperation] = []
+    var lastOperations: [MoveOperation] = []
     
-    public init(fileManager: FileManager = .default) {
+    init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
     }
     
-    public func organize(directory: URL) throws -> Int {
+    func organize(directory: URL) throws -> Int {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles])
         var movedCount = 0
         var currentOperations: [MoveOperation] = []
-        
-        for url in contents {
-            let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
-            guard resourceValues.isRegularFile == true else { continue }
-            
-            let item = FileItem(url: url)
-            guard item.category != .other else { continue }
-            
-            let targetDir = directory.appendingPathComponent(item.category.rawValue)
-            if !fileManager.fileExists(atPath: targetDir.path) {
-                try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
+
+        do {
+            for url in contents {
+                let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
+                guard resourceValues.isRegularFile == true else { continue }
+
+                let item = FileItem(url: url)
+                guard item.category != .other else { continue }
+
+                let targetDir = directory.appendingPathComponent(item.category.rawValue)
+                if !fileManager.fileExists(atPath: targetDir.path) {
+                    try fileManager.createDirectory(at: targetDir, withIntermediateDirectories: true)
+                }
+
+                let destination = getUniqueURL(for: item.name, in: targetDir)
+                try fileManager.moveItem(at: url, to: destination)
+
+                currentOperations.append(MoveOperation(source: url, destination: destination))
+                movedCount += 1
             }
-            
-            let destination = getUniqueURL(for: item.name, in: targetDir)
-            try fileManager.moveItem(at: url, to: destination)
-            
-            currentOperations.append(MoveOperation(source: url, destination: destination))
-            movedCount += 1
+        } catch {
+            // Preserve partial moves so undoLastOrganize() can recover any files already moved.
+            lastOperations = currentOperations
+            throw error
         }
-        
+
         lastOperations = currentOperations
         return movedCount
     }
     
-    public func undoLastOrganize() throws {
+    func undoLastOrganize() throws {
         for op in lastOperations.reversed() {
             if fileManager.fileExists(atPath: op.destination.path) {
                 try fileManager.moveItem(at: op.destination, to: op.source)
             }
         }
+        // Clear state only after all moves succeed; if an earlier move threw, the
+        // remaining operations are still in lastOperations so undo can be retried.
         lastOperations = []
     }
     
-    public func cleanEmptyFolders(in directory: URL) throws -> Int {
+    func cleanEmptyFolders(in directory: URL) throws -> Int {
         let contents = try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: [])
         var removedCount = 0
         
@@ -70,7 +82,7 @@ public final class FileService: ObservableObject {
         return removedCount
     }
     
-    public func getParetoInsights(for directory: URL) throws -> (totalSize: Int64, topFiles: [FileItem], impactPercent: Double) {
+    func getParetoInsights(for directory: URL) throws -> (totalSize: Int64, topFiles: [FileItem], impactPercent: Double) {
         let files = try allFiles(in: directory).sorted { $0.size > $1.size }
         
         let totalSize = files.reduce(0) { $0 + $1.size }

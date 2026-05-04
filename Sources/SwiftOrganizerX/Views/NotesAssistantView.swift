@@ -1,76 +1,100 @@
 import SwiftUI
 
-public struct NotesAssistantView: View {
-    @AppStorage("openai_api_key") private var apiKey: String = ""
-    @State private var notes: [NoteItem] = []
-    @State private var evaluations: [String: NoteEvaluation] = [:]
-    @State private var isEvaluating: Bool = false
-    @State private var processedNotes: Int = 0
-    @State private var statusMessage: String = "Fetch notes to begin"
-    private let notesService = NotesService()
-    
-    public var body: some View {
+struct NotesAssistantView: View {
+    @StateObject private var viewModel = NotesAssistantViewModel()
+    @State private var showApplyConfirmation = false
+
+    var body: some View {
         VStack {
             HStack {
                 Button("Fetch Notes") {
-                    fetchNotes()
+                    viewModel.fetchNotes()
                 }
+                .disabled(viewModel.isFetching)
                 .buttonStyle(.borderedProminent)
-                
+                .accessibilityLabel("Fetch notes from Apple Notes")
+                .accessibilityHint("Loads all notes via AppleScript")
+
                 Button("Evaluate All (AI)") {
-                    evaluateNotes()
+                    viewModel.evaluateNotes()
                 }
-                .disabled(notes.isEmpty || isEvaluating || trimmedAPIKey.isEmpty)
+                .disabled(!viewModel.canEvaluate)
                 .buttonStyle(.bordered)
-                
+                .accessibilityLabel("Evaluate notes with AI")
+                .accessibilityHint("Sends notes to OpenAI for categorization suggestions")
+
                 Button("Apply Suggested Categories") {
-                    applySuggestedCategories()
+                    showApplyConfirmation = true
                 }
-                .disabled(isEvaluating || suggestedMoveCount == 0)
+                .disabled(!viewModel.canApply)
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Apply suggested category moves")
+                .accessibilityHint("Moves \(viewModel.suggestedMoveCount) note(s) into their suggested folders")
             }
             .padding()
-            
-            if isEvaluating {
-                ProgressView(value: Double(processedNotes), total: Double(max(notes.count, 1)))
+
+            if viewModel.isEvaluating {
+                ProgressView(value: Double(viewModel.processedNotes),
+                             total: Double(max(viewModel.notes.count, 1)))
+                    .padding(.horizontal)
+                    .accessibilityLabel("Evaluation progress")
+                    .accessibilityValue("\(viewModel.processedNotes) of \(viewModel.notes.count) notes evaluated")
+            }
+
+            if viewModel.isApplying {
+                ProgressView("Applying changes…")
                     .padding(.horizontal)
             }
-            
-            List(notes) { note in
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text(note.title)
-                            .font(.headline)
-                        Spacer()
-                        if let evaluation = evaluations[note.id] {
-                            Text(evaluation.isMeaningful ? "Meaningful" : "Review")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(evaluation.isMeaningful ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
-                                .clipShape(Capsule())
+
+            if viewModel.notes.isEmpty {
+                ContentUnavailableView(
+                    "No Notes",
+                    systemImage: "note.text",
+                    description: Text("Tap \"Fetch Notes\" to load your Apple Notes library")
+                )
+            } else {
+                List(viewModel.notes) { note in
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text(note.title)
+                                .font(.headline)
+                            Spacer()
+                            if let evaluation = viewModel.evaluations[note.id] {
+                                Text(evaluation.isMeaningful ? "Meaningful" : "Review")
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(evaluation.isMeaningful
+                                        ? Color.green.opacity(0.15)
+                                        : Color.orange.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .accessibilityLabel(evaluation.isMeaningful ? "Meaningful note" : "Needs review")
+                            }
                         }
-                    }
-                    
-                    Text(note.folder)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    if let evaluation = evaluations[note.id] {
-                        Text(evaluation.reason)
-                            .font(.subheadline)
+
+                        Text(note.folder)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                        if let suggestedCategory = evaluation.suggestedCategory, !suggestedCategory.isEmpty {
-                            Text("Suggested folder: \(suggestedCategory)")
-                                .font(.caption)
-                                .foregroundStyle(.primary)
+                            .accessibilityLabel("Current folder: \(note.folder)")
+
+                        if let evaluation = viewModel.evaluations[note.id] {
+                            Text(evaluation.reason)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            if let suggested = evaluation.suggestedCategory, !suggested.isEmpty {
+                                Text("Suggested folder: \(suggested)")
+                                    .font(.caption)
+                                    .foregroundStyle(.primary)
+                                    .accessibilityLabel("Suggested folder: \(suggested)")
+                            }
                         }
                     }
+                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(.vertical, 4)
             }
-            
-            if !trimmedAPIKey.isEmpty {
+
+            if !viewModel.trimmedAPIKey.isEmpty {
                 Text("Using configured OpenAI API key for note evaluation.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -79,103 +103,32 @@ public struct NotesAssistantView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
-            Text(statusMessage)
+
+            Text(viewModel.statusMessage)
                 .font(.caption)
                 .padding()
         }
         .navigationTitle("Notes Assistant")
-    }
-    
-    private var trimmedAPIKey: String {
-        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    private var suggestedMoveCount: Int {
-        notes.reduce(into: 0) { count, note in
-            guard let suggestedCategory = evaluations[note.id]?.suggestedCategory?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !suggestedCategory.isEmpty,
-                  suggestedCategory != note.folder else {
-                return
-            }
-            count += 1
+        .onAppear {
+            viewModel.onAppear()
         }
-    }
-    
-    private func fetchNotes() {
-        Task { @MainActor in
-            do {
-                notes = try await notesService.fetchAllNotes()
-                evaluations = [:]
-                processedNotes = 0
-                statusMessage = "Fetched \(notes.count) notes"
-            } catch {
-                statusMessage = "Error: \(error.localizedDescription)"
+        .alert("Send Notes to OpenAI?", isPresented: $viewModel.showConsentAlert) {
+            Button("Allow") {
+                viewModel.grantConsentAndEvaluate()
             }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Note titles, folder names, and content will be sent to OpenAI for evaluation. OpenAI may process this data according to their privacy policy. You can revoke consent at any time in Settings.")
         }
-    }
-    
-    private func evaluateNotes() {
-        guard !trimmedAPIKey.isEmpty else {
-            statusMessage = "Add an OpenAI API key in Settings before running evaluation."
-            return
-        }
-        
-        Task { @MainActor in
-            isEvaluating = true
-            processedNotes = 0
-            evaluations = [:]
-            statusMessage = "Evaluating \(notes.count) notes..."
-            
-            let aiService = AIService(apiKey: trimmedAPIKey)
-            var completed = 0
-            var failures = 0
-            
-            for note in notes {
-                do {
-                    let evaluation = try await aiService.evaluate(note: note)
-                    evaluations[note.id] = evaluation
-                } catch {
-                    failures += 1
-                }
-                
-                completed += 1
-                processedNotes = completed
-                statusMessage = "Evaluated \(completed)/\(notes.count) notes"
+        .alert("Apply \(viewModel.suggestedMoveCount) Suggested Move(s)?",
+               isPresented: $showApplyConfirmation) {
+            Button("Apply", role: .destructive) {
+                viewModel.applySuggestedCategories()
             }
-            
-            isEvaluating = false
-            let suggestionCount = suggestedMoveCount
-            statusMessage = "Evaluation complete. \(evaluations.count) notes reviewed, \(suggestionCount) suggested moves, \(failures) failures."
-        }
-    }
-    
-    private func applySuggestedCategories() {
-        Task { @MainActor in
-            var movedCount = 0
-            
-            for note in notes {
-                guard let evaluation = evaluations[note.id],
-                      let suggestedCategory = evaluation.suggestedCategory?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !suggestedCategory.isEmpty,
-                      suggestedCategory != note.folder else {
-                    continue
-                }
-                
-                do {
-                    try notesService.moveNote(id: note.id, toFolder: suggestedCategory)
-                    movedCount += 1
-                } catch {
-                    statusMessage = "Move failed for \(note.title): \(error.localizedDescription)"
-                }
-            }
-            
-            do {
-                notes = try await notesService.fetchAllNotes()
-                statusMessage = "Moved \(movedCount) notes into suggested folders."
-            } catch {
-                statusMessage = "Moved \(movedCount) notes, but refresh failed: \(error.localizedDescription)"
-            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will move \(viewModel.suggestedMoveCount) note(s) into their suggested folders in Apple Notes. You can move them back manually if needed.")
         }
     }
 }
+

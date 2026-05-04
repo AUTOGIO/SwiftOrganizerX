@@ -1,11 +1,11 @@
 import SwiftUI
 
-public struct MainView: View {
+struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
     
-    public init() {}
+    init() {}
     
-    public var body: some View {
+    var body: some View {
         NavigationSplitView {
             List(NavigationItem.allCases, id: \.self, selection: $viewModel.selectedItem) { item in
                 NavigationLink(value: item) {
@@ -26,9 +26,11 @@ public struct MainView: View {
                     SettingsView()
                 }
             } else {
-                Text("Select an item from the sidebar")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView(
+                    "No Section Selected",
+                    systemImage: "sidebar.left",
+                    description: Text("Choose a section from the sidebar to get started")
+                )
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openFileOrganizer)) { _ in

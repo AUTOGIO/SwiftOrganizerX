@@ -1,16 +1,16 @@
 import SwiftUI
 
-public extension Notification.Name {
+extension Notification.Name {
     static let openFileOrganizer = Notification.Name("SwiftOrganizerX.openFileOrganizer")
 }
 
-public enum NavigationItem: String, CaseIterable {
+enum NavigationItem: String, CaseIterable {
     case fileOrganizer = "File Organizer"
     case notesAssistant = "Notes Assistant"
     case insights = "Insights"
     case settings = "Settings"
     
-    public var icon: String {
+    var icon: String {
         switch self {
         case .fileOrganizer: return "folder.badge.gearshape"
         case .notesAssistant: return "note.text.badge.plus"
@@ -20,8 +20,8 @@ public enum NavigationItem: String, CaseIterable {
     }
 }
 
-public final class MainViewModel: ObservableObject {
-    @Published public var selectedItem: NavigationItem? = .fileOrganizer
+final class MainViewModel: ObservableObject {
+    @Published var selectedItem: NavigationItem? = .fileOrganizer
     
-    public init() {}
+    init() {}
 }

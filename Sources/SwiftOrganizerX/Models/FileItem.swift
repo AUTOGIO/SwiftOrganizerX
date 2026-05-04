@@ -1,6 +1,6 @@
 import Foundation
 
-public enum FileCategory: String, CaseIterable, Codable {
+enum FileCategory: String, CaseIterable, Codable {
     case images = "Images"
     case documents = "Documents"
     case videos = "Videos"
@@ -10,20 +10,32 @@ public enum FileCategory: String, CaseIterable, Codable {
     case executables = "Executables"
     case other = "Other"
     
-    public var extensions: Set<String> {
+    var extensions: Set<String> {
         switch self {
-        case .images: return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".svg"]
-        case .documents: return [".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".pptx", ".ppt", ".odt", ".ods", ".odp", ".rtf"]
-        case .videos: return [".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"]
-        case .audio: return [".mp3", ".wav", ".aac", ".flac", ".ogg", ".m4a"]
-        case .archives: return [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2"]
-        case .scripts: return [".py", ".js", ".java", ".cpp", ".c", ".h", ".html", ".css", ".sh", ".bat"]
-        case .executables: return [".exe", ".msi", ".dmg", ".app", ".deb", ".rpm"]
-        case .other: return []
+        case .images:
+            return [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp", ".svg",
+                    ".heic", ".heif", ".ico"]
+        case .documents:
+            return [".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".pptx", ".ppt",
+                    ".odt", ".ods", ".odp", ".rtf", ".numbers", ".pages", ".keynote",
+                    ".csv", ".md"]
+        case .videos:
+            return [".mp4", ".mkv", ".mov", ".avi", ".wmv", ".flv", ".webm"]
+        case .audio:
+            return [".mp3", ".wav", ".aac", ".flac", ".ogg", ".m4a", ".aiff", ".opus"]
+        case .archives:
+            return [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso"]
+        case .scripts:
+            return [".py", ".js", ".java", ".cpp", ".c", ".h", ".html", ".css", ".sh", ".bat",
+                    ".swift", ".ts", ".tsx", ".jsx", ".go", ".rs", ".kt", ".rb", ".cs"]
+        case .executables:
+            return [".exe", ".msi", ".dmg", ".app", ".deb", ".rpm"]
+        case .other:
+            return []
         }
     }
     
-    public static func category(for extension: String) -> FileCategory {
+    static func category(for extension: String) -> FileCategory {
         let ext = `extension`.lowercased()
         for category in FileCategory.allCases {
             if category.extensions.contains(ext) {
@@ -34,19 +46,19 @@ public enum FileCategory: String, CaseIterable, Codable {
     }
 }
 
-public struct FileItem: Identifiable, Codable {
-    public let id: UUID
-    public let url: URL
-    public let name: String
-    public let size: Int64
-    public let modificationDate: Date
-    public let isDirectory: Bool
+struct FileItem: Identifiable, Codable {
+    let id: UUID
+    let url: URL
+    let name: String
+    let size: Int64
+    let modificationDate: Date
+    let isDirectory: Bool
     
-    public var category: FileCategory {
+    var category: FileCategory {
         isDirectory ? .other : FileCategory.category(for: url.pathExtension.isEmpty ? "" : "." + url.pathExtension)
     }
     
-    public init(url: URL) {
+    init(url: URL) {
         self.id = UUID()
         self.url = url
         self.name = url.lastPathComponent

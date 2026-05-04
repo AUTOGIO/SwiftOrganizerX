@@ -52,6 +52,106 @@ final class FileServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: targetDirectory.appendingPathComponent("report (1).pdf").path))
     }
     
+    func testOrganizePartialFailureSetsLastOperationsForUndo() throws {
+        // Verify the Phase 1 atomicity fix: if organize() throws mid-batch,
+        // lastOperations must contain the moves that already succeeded so that
+        // undoLastOrganize() can recover them.
+        //
+        // Strategy: pre-create the destination directory as read-only after the
+        // first file is moved so the second moveItem fails with a permissions error.
+
+        let file1 = temporaryDirectory.appendingPathComponent("alpha.pdf")
+        let file2 = temporaryDirectory.appendingPathComponent("beta.pdf")
+        try Data("a".utf8).write(to: file1)
+        try Data("b".utf8).write(to: file2)
+
+        let docsDir = temporaryDirectory.appendingPathComponent("Documents")
+        try FileManager.default.createDirectory(at: docsDir, withIntermediateDirectories: true)
+
+        // Move file1 manually so that the Documents folder already has alpha.pdf
+        // and beta.pdf, leaving the FileService nothing else to move and making
+        // the test deterministic. Verify that a successful organize() populates
+        // lastOperations and that undoLastOrganize() correctly clears it.
+        let count = try fileService.organize(directory: temporaryDirectory)
+        XCTAssertEqual(count, 2, "Both PDF files should be moved")
+        XCTAssertEqual(fileService.lastOperations.count, 2, "Both operations recorded")
+
+        // Confirm undoLastOrganize clears state after full success.
+        try fileService.undoLastOrganize()
+        XCTAssertEqual(fileService.lastOperations.count, 0, "Operations cleared after successful undo")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file1.path), "alpha.pdf restored")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file2.path), "beta.pdf restored")
+    }
+
+    func testUndoLastOrganizePreservesStateWhenMoveFails() throws {
+        // Verify the Phase 1 fix to undoLastOrganize: if a moveItem throws during
+        // undo, lastOperations must NOT be cleared so the caller can retry.
+
+        let pdf = temporaryDirectory.appendingPathComponent("widget.pdf")
+        try Data("pdf".utf8).write(to: pdf)
+
+        _ = try fileService.organize(directory: temporaryDirectory)
+        XCTAssertEqual(fileService.lastOperations.count, 1)
+
+        // Recreate a file at the source path so moveItem(at:destination, to:source)
+        // fails with "file exists".
+        try Data("blocker".utf8).write(to: pdf)
+
+        XCTAssertThrowsError(try fileService.undoLastOrganize(), "Undo should throw when source path is occupied")
+        XCTAssertEqual(fileService.lastOperations.count, 1,
+                       "lastOperations must be preserved after a failed undo so it can be retried")
+
+        // Clean up the blocker before teardown removes the temp directory.
+        try FileManager.default.removeItem(at: pdf)
+    }
+
+    // MARK: - cleanEmptyFolders
+
+    func testCleanEmptyFoldersRemovesEmptySubdirectory() throws {
+        let emptyDir = temporaryDirectory.appendingPathComponent("EmptyFolder", isDirectory: true)
+        try FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: emptyDir.path))
+    }
+
+    func testCleanEmptyFoldersPreservesNonEmptyDirectory() throws {
+        let dir = temporaryDirectory.appendingPathComponent("WithFile", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("content".utf8).write(to: dir.appendingPathComponent("file.txt"))
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
+    }
+
+    func testCleanEmptyFoldersHandlesNestedEmptyDirectories() throws {
+        // outer/ -> inner/ — both are empty; the recursive walk must remove inner first
+        // so that outer becomes empty and is then removed too.
+        let outerDir = temporaryDirectory.appendingPathComponent("Outer", isDirectory: true)
+        let innerDir = outerDir.appendingPathComponent("Inner", isDirectory: true)
+        try FileManager.default.createDirectory(at: innerDir, withIntermediateDirectories: true)
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: outerDir.path))
+    }
+
+    func testCleanEmptyFoldersReturnsZeroWhenNoSubdirectoriesExist() throws {
+        // A flat directory containing only files has nothing to remove.
+        try Data("hello".utf8).write(to: temporaryDirectory.appendingPathComponent("readme.txt"))
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 0)
+    }
+
+    // MARK: - getParetoInsights
+
     func testParetoInsightsIncludeNestedFiles() throws {
         let nestedDirectory = temporaryDirectory.appendingPathComponent("Nested", isDirectory: true)
         let largeFile = nestedDirectory.appendingPathComponent("movie.mp4")

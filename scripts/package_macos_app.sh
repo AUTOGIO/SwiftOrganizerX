@@ -58,6 +58,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>SwiftOrganizerX uses Apple Events to read and organize your Notes in the Notes app.</string>
 </dict>
 </plist>
 EOF
