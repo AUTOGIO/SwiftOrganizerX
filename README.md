@@ -23,9 +23,18 @@ A native macOS application for file organization and Apple Notes review, built w
 
 ## Clone and Run
 
+**One-click launch** (builds and opens the app in a single command):
+
 ```bash
 git clone https://github.com/AUTOGIO/SwiftOrganizerX.git
 cd SwiftOrganizerX
+bash scripts/launch.sh            # debug build (fastest)
+bash scripts/launch.sh release    # release build (optimised)
+```
+
+Or manually:
+
+```bash
 swift build -c release
 .build/release/SwiftOrganizerX
 ```
