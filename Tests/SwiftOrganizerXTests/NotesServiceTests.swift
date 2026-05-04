@@ -50,6 +50,25 @@ final class NotesServiceTests: XCTestCase {
         XCTAssertEqual(NotesService.stripHTML("one   \n\n   two"), "one two")
     }
 
+    // MARK: - NoteItem Codable
+    // fetchAllNotes() and moveNote(id:toFolder:) call NSAppleScript directly with no
+    // injection point; they cannot be unit-tested without refactoring NotesService to
+    // accept a script-executor dependency. The Codable conformance of NoteItem — the
+    // value type they produce and consume — is verified here instead.
+
+    func testNoteItemCodableRoundTrip() throws {
+        let original = NoteItem(id: "x-coredata://123", title: "Meeting", body: "Discuss roadmap", folder: "Work")
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(NoteItem.self, from: data)
+
+        XCTAssertEqual(decoded.id, original.id)
+        XCTAssertEqual(decoded.title, original.title)
+        XCTAssertEqual(decoded.body, original.body)
+        XCTAssertEqual(decoded.folder, original.folder)
+    }
+
+    // MARK: - stripHTML
+
     func testStripHTMLNoteShapedContent() {
         // Typical Apple Notes HTML structure
         let html = """

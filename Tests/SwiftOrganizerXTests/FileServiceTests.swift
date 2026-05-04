@@ -105,6 +105,53 @@ final class FileServiceTests: XCTestCase {
         try FileManager.default.removeItem(at: pdf)
     }
 
+    // MARK: - cleanEmptyFolders
+
+    func testCleanEmptyFoldersRemovesEmptySubdirectory() throws {
+        let emptyDir = temporaryDirectory.appendingPathComponent("EmptyFolder", isDirectory: true)
+        try FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: emptyDir.path))
+    }
+
+    func testCleanEmptyFoldersPreservesNonEmptyDirectory() throws {
+        let dir = temporaryDirectory.appendingPathComponent("WithFile", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("content".utf8).write(to: dir.appendingPathComponent("file.txt"))
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
+    }
+
+    func testCleanEmptyFoldersHandlesNestedEmptyDirectories() throws {
+        // outer/ -> inner/ — both are empty; the recursive walk must remove inner first
+        // so that outer becomes empty and is then removed too.
+        let outerDir = temporaryDirectory.appendingPathComponent("Outer", isDirectory: true)
+        let innerDir = outerDir.appendingPathComponent("Inner", isDirectory: true)
+        try FileManager.default.createDirectory(at: innerDir, withIntermediateDirectories: true)
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 2)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: outerDir.path))
+    }
+
+    func testCleanEmptyFoldersReturnsZeroWhenNoSubdirectoriesExist() throws {
+        // A flat directory containing only files has nothing to remove.
+        try Data("hello".utf8).write(to: temporaryDirectory.appendingPathComponent("readme.txt"))
+
+        let removedCount = try fileService.cleanEmptyFolders(in: temporaryDirectory)
+
+        XCTAssertEqual(removedCount, 0)
+    }
+
+    // MARK: - getParetoInsights
+
     func testParetoInsightsIncludeNestedFiles() throws {
         let nestedDirectory = temporaryDirectory.appendingPathComponent("Nested", isDirectory: true)
         let largeFile = nestedDirectory.appendingPathComponent("movie.mp4")
